@@ -10,6 +10,7 @@ interface TileProps {
   is3D?: boolean;
   tilt?: number;
   rotation?: number;
+  owner?: Player; // Thêm thông tin người sở hữu để hiện thị màu sắc và tên
 }
 
 const colorMap: Record<string, string> = {
@@ -30,7 +31,8 @@ export const Tile: React.FC<TileProps> = ({
   isSelectable,
   is3D = false,
   tilt = 45,
-  rotation = -30
+  rotation = -30,
+  owner
 }) => {
   const isCorner = tile.type === 'go' || tile.type === 'jail' || tile.type === 'freeparking' || tile.type === 'gotojail';
   
@@ -87,12 +89,16 @@ export const Tile: React.FC<TileProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`relative border border-slate-200 flex flex-col justify-between p-1 bg-white select-none text-center cursor-pointer transition-all duration-150 shadow-sm
+      className={`relative border-2 flex flex-col justify-between p-1 bg-white select-none text-center cursor-pointer transition-all duration-150 shadow-sm
         ${isCorner ? 'aspect-square justify-center bg-slate-50/90' : 'aspect-[3/4]'}
         ${isSelectable ? 'ring-2 ring-emerald-500 hover:bg-slate-50' : 'hover:bg-slate-50/55'}
         ${tile.mortgaged ? 'opacity-60 grayscale' : ''}
       `}
-      style={is3D ? { transformStyle: 'preserve-3d' } : {}}
+      style={{
+        ...(is3D ? { transformStyle: 'preserve-3d' } : {}),
+        // Tô viền ngoài của ô đất theo màu đại diện của người chơi đã mua
+        borderColor: tile.ownerId && owner ? owner.avatarColor : '#e2e8f0',
+      }}
     >
       {/* Property color bar */}
       {tile.colorGroup && !isCorner && (
@@ -124,12 +130,13 @@ export const Tile: React.FC<TileProps> = ({
           style={is3D ? { transform: 'translateZ(1.5px)' } : {}}
           className="mt-0.5 text-[8px] font-extrabold flex flex-col items-center"
         >
-          {tile.ownerId ? (
+          {tile.ownerId && owner ? (
             <span
-              className="px-1 py-0.2 rounded text-[6.5px] text-white font-black uppercase tracking-wider shadow-sm"
-              style={{ backgroundColor: tile.mortgaged ? '#64748b' : '#10b981' }}
+              className="px-1 py-0.2 rounded text-[6px] text-white font-black uppercase tracking-wider shadow-sm truncate max-w-[48px]"
+              style={{ backgroundColor: tile.mortgaged ? '#64748b' : owner.avatarColor }}
+              title={tile.mortgaged ? `Thế chấp (Chủ: ${owner.name})` : `Chủ sở hữu: ${owner.name}`}
             >
-              {tile.mortgaged ? 'Thế chấp' : 'Đã mua'}
+              {tile.mortgaged ? 'Thế chấp' : owner.name.substring(0, 5)}
             </span>
           ) : (
             tile.price > 0 && <span className="text-emerald-700">${tile.price}</span>

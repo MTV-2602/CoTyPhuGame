@@ -12,6 +12,17 @@ import { ResultModal } from '../components/ResultModal';
 import { SkillButton } from '../components/SkillButton';
 import { getCharacterById } from '../data/characters';
 
+const colorGroupHex: Record<string, string> = {
+  brown: 'bg-[#8B5A2B]',
+  sky: 'bg-[#87CEEB]',
+  pink: 'bg-[#FF69B4]',
+  orange: 'bg-[#FF8C00]',
+  red: 'bg-[#FF0000]',
+  yellow: 'bg-[#FFD700]',
+  green: 'bg-[#008000]',
+  navy: 'bg-[#000080]',
+};
+
 export const GameRoom: React.FC = () => {
   useRealtimeRoom();
 
@@ -48,6 +59,9 @@ export const GameRoom: React.FC = () => {
   const [showTradeForm, setShowTradeForm] = useState(false);
   const [selectedTileIndex, setSelectedTileIndex] = useState<number | null>(null);
   
+  // Hovered tile index for displaying details card in the center of the board
+  const [hoveredTileIndex, setHoveredTileIndex] = useState<number | null>(null);
+
   // Turn Timer State: 30 seconds count down
   const [timeLeft, setTimeLeft] = useState(30);
 
@@ -169,6 +183,11 @@ export const GameRoom: React.FC = () => {
 
   const selectedTile = selectedTileIndex !== null ? gameState.board[selectedTileIndex] : null;
   const isOwnerOfSelected = selectedTile?.ownerId === userId;
+  
+  // Lấy dữ liệu ô đang di chuột lên
+  const hoveredTile = hoveredTileIndex !== null ? gameState.board[hoveredTileIndex] : null;
+  const hoveredTileOwner = hoveredTile?.ownerId ? gameState.players.find(p => p.userId === hoveredTile.ownerId) : null;
+
   const hasIncomingTrade = trades.some((t) => t.receiver_id === userId && t.status === 'PENDING');
 
   const checkMonopoly = (tile: any) => {
@@ -206,6 +225,7 @@ export const GameRoom: React.FC = () => {
           board={gameState.board}
           players={gameState.players}
           selectedTileIndex={selectedTileIndex}
+          onTileHover={setHoveredTileIndex}
           onTileClick={(idx) => {
             const tile = gameState.board[idx];
             if (tile.ownerId === userId) {
@@ -267,6 +287,78 @@ export const GameRoom: React.FC = () => {
                 >
                   {selectedTile.mortgaged ? `Giải chấp (-$${Math.floor(selectedTile.price * 0.55)})` : `Thế chấp (+$${selectedTile.price / 2})`}
                 </button>
+              </div>
+            </div>
+          ) : hoveredTile && !isLobby ? (
+            /* BẢNG THÔNG TIN CHI TIẾT Ô ĐẤT KHI DI CHUỘT LÊN (Title Deed Card) */
+            <div className="flex-1 flex flex-col justify-between bg-white border border-slate-200 rounded-2xl p-4 text-slate-800 shadow-md animate-fade-in my-1">
+              <div>
+                {/* Header card có màu nhóm đất */}
+                {hoveredTile.colorGroup ? (
+                  <div className={`h-6 w-full ${colorGroupHex[hoveredTile.colorGroup]} rounded-lg flex items-center justify-center mb-2 shadow-sm`}>
+                    <span className="text-[10px] font-black text-white uppercase tracking-wider">
+                      Bằng Khoán Đất
+                    </span>
+                  </div>
+                ) : (
+                  <div className="bg-slate-700 h-6 w-full rounded-lg flex items-center justify-center mb-2 shadow-sm">
+                    <span className="text-[10px] font-black text-white uppercase tracking-wider">
+                      {hoveredTile.type === 'railroad' ? 'NHÀ GA SẮT' : hoveredTile.type === 'utility' ? 'CÔNG TY DỊCH VỤ' : 'ĐỊA ĐIỂM ĐẶC BIỆT'}
+                    </span>
+                  </div>
+                )}
+
+                <h4 className="text-sm font-black text-slate-900 mb-1">{hoveredTile.name}</h4>
+                
+                <div className="text-[10px] text-slate-600 flex flex-col gap-1 border-t border-slate-100 pt-1.5 mt-1.5">
+                  <div className="flex justify-between">
+                    <span>Giá mua gốc:</span>
+                    <span className="font-extrabold text-emerald-600">${hoveredTile.price}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Chủ sở hữu:</span>
+                    <span className="font-black" style={{ color: hoveredTileOwner?.avatarColor || '#475569' }}>
+                      {hoveredTileOwner ? hoveredTileOwner.name : 'Chưa có chủ (Nhấp để mua)'}
+                    </span>
+                  </div>
+                  
+                  {/* Bảng giá thuê */}
+                  {hoveredTile.type === 'property' && (
+                    <div className="flex flex-col gap-0.5 mt-1.5 bg-slate-50 p-2 rounded-xl text-[9px] border border-slate-100">
+                      <div className="flex justify-between">
+                        <span>Thuê đất trống:</span>
+                        <span className="font-bold text-slate-700">${hoveredTile.rent[0]}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Có 1 / 2 Nhà:</span>
+                        <span className="font-bold text-slate-700">${hoveredTile.rent[1]} / ${hoveredTile.rent[2]}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Có 3 / 4 Nhà:</span>
+                        <span className="font-bold text-slate-700">${hoveredTile.rent[3]} / ${hoveredTile.rent[4]}</span>
+                      </div>
+                      <div className="flex justify-between font-extrabold text-rose-600">
+                        <span>Có Khách Sạn:</span>
+                        <span>${hoveredTile.rent[5]}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {hoveredTile.type === 'railroad' && (
+                    <p className="text-[9px] text-slate-500 italic mt-1.5 leading-normal">
+                      Tiền thuê: 1 ga ($25), 2 ga ($50), 3 ga ($100), 4 ga ($200).
+                    </p>
+                  )}
+
+                  {hoveredTile.type === 'utility' && (
+                    <p className="text-[9px] text-slate-500 italic mt-1.5 leading-normal">
+                      Tiền thuê: Xúc xắc x4 (sở hữu 1) hoặc x10 (sở hữu cả 2 tiện ích).
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="text-[8.5px] text-slate-400 text-center font-bold">
+                (Rê chuột ra ngoài để trở lại bảng điều khiển lượt chơi)
               </div>
             </div>
           ) : (

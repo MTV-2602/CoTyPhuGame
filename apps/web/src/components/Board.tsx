@@ -8,6 +8,7 @@ interface BoardProps {
   onTileClick?: (index: number) => void;
   selectedTileIndex?: number | null;
   selectableTileIndices?: number[];
+  onTileHover?: (index: number | null) => void; // Thêm sự kiện di chuột lên ô
   children?: React.ReactNode;
 }
 
@@ -29,6 +30,7 @@ export const Board: React.FC<BoardProps> = ({
   onTileClick,
   selectedTileIndex,
   selectableTileIndices = [],
+  onTileHover,
   children,
 }) => {
   const [is3D, setIs3D] = useState(true);
@@ -106,10 +108,13 @@ export const Board: React.FC<BoardProps> = ({
               const pos = getTileGridPosition(tile.index);
               const playersOnTile = players.filter((p) => p.position === tile.index && !p.isBankrupt);
               const isSelectable = selectableTileIndices.includes(tile.index);
+              const owner = players.find((p) => p.userId === tile.ownerId);
 
               return (
                 <div
                   key={tile.index}
+                  onMouseEnter={() => onTileHover?.(tile.index)}
+                  onMouseLeave={() => onTileHover?.(null)}
                   style={{
                     gridRow: pos.gridRow,
                     gridColumn: pos.gridColumn,
@@ -124,6 +129,7 @@ export const Board: React.FC<BoardProps> = ({
                     is3D={is3D}
                     tilt={tilt}
                     rotation={rotation}
+                    owner={owner}
                   />
                 </div>
               );
