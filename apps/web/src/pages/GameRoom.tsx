@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { useRealtimeRoom } from '../hooks/useRealtimeRoom';
 import { LobbyRoom } from '../components/LobbyRoom';
@@ -10,8 +10,6 @@ import { TradeModal } from '../components/TradeModal';
 import { ResultModal } from '../components/ResultModal';
 import { SkillButton } from '../components/SkillButton';
 import { getCharacterById } from '../data/characters';
-
-
 
 export const GameRoom: React.FC = () => {
   useRealtimeRoom();
@@ -50,6 +48,10 @@ export const GameRoom: React.FC = () => {
   const [selectedTileIndex, setSelectedTileIndex] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(30);
 
+  // Quản lý di chuyển bước đi trực quan từng ô một trên Client
+  const [visualPositions, setVisualPositions] = useState<Record<string, number>>({});
+  const animatingRef = useRef<Record<string, boolean>>({});
+
   // 3D Active Skill VFX state
   const [activeVfx, setActiveVfx] = useState<'fist' | 'beam' | 'shield' | null>(null);
 
@@ -87,13 +89,52 @@ export const GameRoom: React.FC = () => {
     }
   }, [gameState, rollDice, endTurn, payRent, payTax, drawCard, skipBuy, userId]);
 
+  // Bộ điều khiển di chuyển cờ bước đi từng ô cờ (Step-by-step path walking animator)
+  useEffect(() => {
+    if (!gameState || isLobby) return;
+
+    gameState.players.forEach((player) => {
+      const serverPos = player.position;
+      const currentVisualPos = visualPositions[player.userId];
+
+      // Nếu chưa được khởi tạo, đặt vị trí trực quan bằng vị trí server
+      if (currentVisualPos === undefined) {
+        setVisualPositions((prev) => ({ ...prev, [player.userId]: serverPos }));
+        return;
+      }
+
+      // Nếu vị trí trên server khác vị trí hiển thị và không có tiến trình chạy cờ nào đang chạy
+      if (serverPos !== currentVisualPos && !animatingRef.current[player.userId]) {
+        animatingRef.current[player.userId] = true;
+        
+        let tempPos = currentVisualPos;
+        const stepDelay = 320; // 320ms mỗi ô cờ
+
+        const performStep = () => {
+          if (tempPos === serverPos) {
+            animatingRef.current[player.userId] = false;
+            return;
+          }
+
+          // Đi từng bước một hướng về phía trước theo chiều kim đồng hồ
+          tempPos = (tempPos + 1) % 40;
+          setVisualPositions((prev) => ({ ...prev, [player.userId]: tempPos }));
+
+          setTimeout(performStep, stepDelay);
+        };
+
+        setTimeout(performStep, stepDelay);
+      }
+    });
+  }, [gameState, isLobby, visualPositions]);
+
   // 1. Tự động kết thúc lượt LẬP TỨC khi di chuyển xong hoặc mua nhà xong (Action/End phase)
   useEffect(() => {
     if (!isMyTurn || isLobby || !gameState || gameState.winner_id) return;
     
     if (gameState.turn_phase === 'action' || gameState.turn_phase === 'end') {
       const myPlayer = gameState.players[gameState.current_turn_index];
-      // Tự động kết thúc lượt lập tức nếu tiền hiện tại không bị âm
+      // Chỉ tự động kết thúc lượt nếu tiền hiện tại không bị âm
       if (myPlayer && myPlayer.cash >= 0) {
         endTurn();
       }
@@ -207,7 +248,6 @@ export const GameRoom: React.FC = () => {
 
   const selectedTile = selectedTileIndex !== null ? gameState.board[selectedTileIndex] : null;
   const isOwnerOfSelected = selectedTile?.ownerId === userId;
-
   const hasIncomingTrade = trades.some((t) => t.receiver_id === userId && t.status === 'PENDING');
 
   const checkMonopoly = (tile: any) => {
@@ -283,6 +323,7 @@ export const GameRoom: React.FC = () => {
         <Board
           board={gameState.board}
           players={gameState.players}
+          visualPositions={visualPositions} // Pass visual positions here
           selectedTileIndex={selectedTileIndex}
           activePlayerIndex={gameState.current_turn_index}
           rollPredictions={rollPredictions} // Pass predictions here

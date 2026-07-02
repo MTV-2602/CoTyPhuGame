@@ -5,6 +5,7 @@ import { Tile } from './Tile';
 interface BoardProps {
   board: TileType[];
   players: Player[];
+  visualPositions?: Record<string, number>; // Nhận tọa độ bước đi thực tế từ GameRoom
   onTileClick?: (index: number) => void;
   selectedTileIndex?: number | null;
   selectableTileIndices?: number[];
@@ -38,6 +39,7 @@ type ViewMode = '2D' | '3D' | '3P' | '1P';
 export const Board: React.FC<BoardProps> = ({
   board,
   players,
+  visualPositions = {},
   onTileClick,
   selectedTileIndex,
   selectableTileIndices = [],
@@ -73,7 +75,11 @@ export const Board: React.FC<BoardProps> = ({
     const currentPlayer = players[activePlayerIndex];
     if (!currentPlayer || currentPlayer.isBankrupt) return;
 
-    const pos = currentPlayer.position;
+    // Camera bám theo vị trí bước đi trực quan (visualPositions) để camera di chuyển mượt mà từng ô cùng người que
+    const pos = visualPositions[currentPlayer.userId] !== undefined 
+      ? visualPositions[currentPlayer.userId] 
+      : currentPlayer.position;
+
     setOrigin(getTilePercentPosition(pos));
 
     if (pos >= 0 && pos < 10) {
@@ -93,7 +99,7 @@ export const Board: React.FC<BoardProps> = ({
       setAutoTilt(60);
       setScale(1.2);
     }
-  }, [viewMode, activePlayerIndex, players]);
+  }, [viewMode, activePlayerIndex, players, visualPositions]);
 
   // Xử lý sự kiện nhấn chuột để xoay 3D
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -113,7 +119,6 @@ export const Board: React.FC<BoardProps> = ({
     const deltaX = e.clientX - dragStartRef.current.x;
     const deltaY = e.clientY - dragStartRef.current.y;
     
-    // Kéo ngang để xoay quanh trục Z, kéo dọc để thay đổi độ nghiêng X
     const newRotation = dragStartRef.current.rotation + deltaX * 0.4;
     const newTilt = Math.max(15, Math.min(75, dragStartRef.current.tilt - deltaY * 0.35));
     
@@ -225,7 +230,13 @@ export const Board: React.FC<BoardProps> = ({
           >
             {board.map((tile) => {
               const pos = getTileGridPosition(tile.index);
-              const playersOnTile = players.filter((p) => p.position === tile.index && !p.isBankrupt);
+              // Lọc quân cờ dựa trên tọa độ di chuyển từng bước trực quan
+              const playersOnTile = players.filter((p) => {
+                const pPos = visualPositions[p.userId] !== undefined 
+                  ? visualPositions[p.userId] 
+                  : p.position;
+                return pPos === tile.index && !p.isBankrupt;
+              });
               const isSelectable = selectableTileIndices.includes(tile.index);
               const owner = players.find((p) => p.userId === tile.ownerId);
 
