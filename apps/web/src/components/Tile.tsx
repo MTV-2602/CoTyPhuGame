@@ -7,6 +7,9 @@ interface TileProps {
   playersOnTile: Player[];
   onClick?: () => void;
   isSelectable?: boolean;
+  is3D?: boolean;
+  tilt?: number;
+  rotation?: number;
 }
 
 const colorMap: Record<string, string> = {
@@ -20,22 +23,51 @@ const colorMap: Record<string, string> = {
   navy: 'bg-[#000080]',       // Navy
 };
 
-export const Tile: React.FC<TileProps> = ({ tile, playersOnTile, onClick, isSelectable }) => {
+export const Tile: React.FC<TileProps> = ({ 
+  tile, 
+  playersOnTile, 
+  onClick, 
+  isSelectable,
+  is3D = false,
+  tilt = 45,
+  rotation = -30
+}) => {
   const isCorner = tile.type === 'go' || tile.type === 'jail' || tile.type === 'freeparking' || tile.type === 'gotojail';
   
   const renderHouses = () => {
     if (tile.type !== 'property' || tile.houses === 0) return null;
+    
+    // Ở chế độ 3D, dựng đứng nhà lên bằng billboard transform
+    const houseStyle: React.CSSProperties = is3D ? {
+      transform: `rotateX(${-tilt}deg) rotateZ(${-rotation}deg) translateZ(8px)`,
+      transformStyle: 'preserve-3d',
+    } : {};
+
     if (tile.houses === 5) {
       return (
-        <div className="absolute top-0.5 left-1/2 -translate-x-1/2 text-[9px]" title="Khách Sạn">
+        <div 
+          style={houseStyle}
+          className="absolute top-0.5 left-1/2 -translate-x-1/2 text-[10px] drop-shadow-md z-10 transition-transform duration-300" 
+          title="Khách Sạn"
+        >
           🏨
         </div>
       );
     }
     return (
-      <div className="absolute top-0.5 left-1/2 -translate-x-1/2 flex gap-0.5 justify-center">
+      <div 
+        style={is3D ? { transformStyle: 'preserve-3d' } : {}}
+        className="absolute top-0.5 left-1/2 -translate-x-1/2 flex gap-0.5 justify-center z-10"
+      >
         {Array.from({ length: tile.houses }).map((_, i) => (
-          <div key={i} className="w-1.5 h-1.5 bg-[#10b981] rounded-sm border border-emerald-700 shadow-sm" title="Nhà" />
+          <div 
+            key={i} 
+            style={houseStyle}
+            className="text-[8px] drop-shadow-sm font-bold transition-transform duration-300" 
+            title="Nhà"
+          >
+            🏠
+          </div>
         ))}
       </div>
     );
@@ -60,6 +92,7 @@ export const Tile: React.FC<TileProps> = ({ tile, playersOnTile, onClick, isSele
         ${isSelectable ? 'ring-2 ring-emerald-500 hover:bg-slate-50' : 'hover:bg-slate-50/55'}
         ${tile.mortgaged ? 'opacity-60 grayscale' : ''}
       `}
+      style={is3D ? { transformStyle: 'preserve-3d' } : {}}
     >
       {/* Property color bar */}
       {tile.colorGroup && !isCorner && (
@@ -69,7 +102,10 @@ export const Tile: React.FC<TileProps> = ({ tile, playersOnTile, onClick, isSele
       )}
 
       {/* Tile Content */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-0.5">
+      <div 
+        style={is3D ? { transform: 'translateZ(1px)' } : {}}
+        className="flex-1 flex flex-col items-center justify-center gap-0.5"
+      >
         {isCorner && cornerEmoji && (
           <span className="text-sm md:text-base leading-none">{cornerEmoji}</span>
         )}
@@ -84,7 +120,10 @@ export const Tile: React.FC<TileProps> = ({ tile, playersOnTile, onClick, isSele
 
       {/* Owner & Price Info */}
       {!isCorner && (
-        <div className="mt-0.5 text-[8px] font-extrabold flex flex-col items-center">
+        <div 
+          style={is3D ? { transform: 'translateZ(1.5px)' } : {}}
+          className="mt-0.5 text-[8px] font-extrabold flex flex-col items-center"
+        >
           {tile.ownerId ? (
             <span
               className="px-1 py-0.2 rounded text-[6.5px] text-white font-black uppercase tracking-wider shadow-sm"
@@ -98,10 +137,21 @@ export const Tile: React.FC<TileProps> = ({ tile, playersOnTile, onClick, isSele
         </div>
       )}
 
-      {/* Players on Tile */}
-      <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex flex-wrap gap-1 justify-center w-full px-0.5 z-10">
+      {/* Players on Tile (dựng đứng cờ ở chế độ 3D) */}
+      <div 
+        style={is3D ? { transformStyle: 'preserve-3d' } : {}}
+        className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex flex-wrap gap-1 justify-center w-full px-0.5 z-10"
+      >
         {playersOnTile.map((p, idx) => (
-          <PlayerToken key={p.userId} name={p.name} color={p.avatarColor} index={idx} />
+          <PlayerToken 
+            key={p.userId} 
+            name={p.name} 
+            color={p.avatarColor} 
+            index={idx} 
+            is3D={is3D}
+            tilt={tilt}
+            rotation={rotation}
+          />
         ))}
       </div>
     </div>

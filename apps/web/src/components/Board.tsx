@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Tile as TileType, Player } from '../types';
 import { Tile } from './Tile';
 
@@ -31,35 +31,114 @@ export const Board: React.FC<BoardProps> = ({
   selectableTileIndices = [],
   children,
 }) => {
-  return (
-    <div className="relative w-full max-w-[650px] aspect-square bg-[#cbd5e1] border-4 border-slate-300 rounded-3xl p-1 shadow-2xl select-none">
-      <div className="grid grid-cols-11 grid-rows-11 gap-0.5 w-full h-full rounded-2xl overflow-hidden bg-slate-200">
-        {board.map((tile) => {
-          const pos = getTileGridPosition(tile.index);
-          const playersOnTile = players.filter((p) => p.position === tile.index && !p.isBankrupt);
-          const isSelectable = selectableTileIndices.includes(tile.index);
+  const [is3D, setIs3D] = useState(true);
+  const [tilt, setTilt] = useState(50);
+  const [rotation, setRotation] = useState(-30);
 
-          return (
-            <div
-              key={tile.index}
-              style={{
-                gridRow: pos.gridRow,
-                gridColumn: pos.gridColumn,
-              }}
-            >
-              <Tile
-                tile={tile}
-                playersOnTile={playersOnTile}
-                isSelectable={isSelectable || selectedTileIndex === tile.index}
-                onClick={() => onTileClick?.(tile.index)}
+  return (
+    <div className="flex flex-col items-center gap-4 w-full max-w-[650px] relative select-none">
+      {/* Thanh điều khiển góc nhìn 3D */}
+      <div className="flex justify-between items-center w-full px-4 py-2 bg-slate-900/90 border border-white/5 rounded-2xl text-xs gap-3 shadow-lg z-20">
+        <div className="flex items-center gap-2">
+          <span className="font-extrabold text-[10px] text-slate-400 uppercase tracking-wider">Chế độ xem:</span>
+          <button
+            type="button"
+            onClick={() => setIs3D(!is3D)}
+            className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase transition-all duration-200 active:scale-95 cursor-pointer
+              ${is3D ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-700 text-slate-300 hover:text-white'}`}
+          >
+            {is3D ? '3D Isometric' : '2D Phẳng'}
+          </button>
+        </div>
+
+        {is3D && (
+          <div className="flex items-center gap-4 flex-1 justify-end animate-fade-in">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-slate-400 font-extrabold uppercase">Nghiêng:</span>
+              <input
+                type="range"
+                min="20"
+                max="70"
+                value={tilt}
+                onChange={(e) => setTilt(parseInt(e.target.value))}
+                className="w-16 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
               />
             </div>
-          );
-        })}
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-slate-400 font-extrabold uppercase">Xoay:</span>
+              <input
+                type="range"
+                min="-90"
+                max="90"
+                value={rotation}
+                onChange={(e) => setRotation(parseInt(e.target.value))}
+                className="w-16 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              />
+            </div>
+          </div>
+        )}
+      </div>
 
-        {/* Center of the Board */}
-        <div className="col-start-2 col-end-11 row-start-2 row-end-11 bg-[#e8f5e9]/95 flex flex-col justify-between p-4 relative z-0 border border-slate-200 rounded-2xl m-0.5 shadow-inner">
-          {children}
+      {/* Perspective Container */}
+      <div 
+        className="w-full relative transition-all duration-300 flex items-center justify-center"
+        style={{
+          perspective: is3D ? '1200px' : 'none',
+          paddingBottom: is3D ? '60px' : '0px',
+        }}
+      >
+        <div 
+          className="w-full aspect-square bg-[#cbd5e1] border-4 border-slate-300 rounded-3xl p-1 transition-all duration-300"
+          style={{
+            transformStyle: is3D ? 'preserve-3d' : 'flat',
+            transform: is3D 
+              ? `rotateX(${tilt}deg) rotateZ(${rotation}deg)` 
+              : 'none',
+            boxShadow: is3D 
+              ? '0 30px 60px rgba(0,0,0,0.65), 0 12px 24px rgba(0,0,0,0.45), inset 0 0 15px rgba(255,255,255,0.2)' 
+              : '0 10px 25px rgba(0,0,0,0.5)',
+          }}
+        >
+          <div className="grid grid-cols-11 grid-rows-11 gap-0.5 w-full h-full rounded-2xl overflow-hidden bg-slate-200"
+            style={is3D ? { transformStyle: 'preserve-3d' } : {}}
+          >
+            {board.map((tile) => {
+              const pos = getTileGridPosition(tile.index);
+              const playersOnTile = players.filter((p) => p.position === tile.index && !p.isBankrupt);
+              const isSelectable = selectableTileIndices.includes(tile.index);
+
+              return (
+                <div
+                  key={tile.index}
+                  style={{
+                    gridRow: pos.gridRow,
+                    gridColumn: pos.gridColumn,
+                    transformStyle: is3D ? 'preserve-3d' : 'flat',
+                  }}
+                >
+                  <Tile
+                    tile={tile}
+                    playersOnTile={playersOnTile}
+                    isSelectable={isSelectable || selectedTileIndex === tile.index}
+                    onClick={() => onTileClick?.(tile.index)}
+                    is3D={is3D}
+                    tilt={tilt}
+                    rotation={rotation}
+                  />
+                </div>
+              );
+            })}
+
+            {/* Center of the Board */}
+            <div 
+              className="col-start-2 col-end-11 row-start-2 row-end-11 bg-[#e8f5e9]/95 flex flex-col justify-between p-4 relative z-0 border border-slate-200 rounded-2xl m-0.5 shadow-inner"
+              style={{
+                transform: is3D ? 'translateZ(1px)' : 'none',
+              }}
+            >
+              {children}
+            </div>
+          </div>
         </div>
       </div>
     </div>
